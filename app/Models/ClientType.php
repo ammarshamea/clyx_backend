@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class ClientType extends Model
 {
     protected $fillable = [
-        'label_en', 'label_ar', 'image', 'sort_order', 'is_active',
+        'image', 'sort_order', 'is_active',
     ];
 
     protected $casts = [

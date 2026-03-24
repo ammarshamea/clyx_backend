@@ -33,8 +33,6 @@ class ClientTypeController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'label_en'   => 'required|string|max:255',
-            'label_ar'   => 'nullable|string|max:255',
             'image'      => 'required|image|mimes:jpeg,png,jpg,webp|max:2048',
             'sort_order' => 'integer',
             'is_active'  => 'boolean',
@@ -48,8 +46,6 @@ class ClientTypeController extends Controller
     public function update(Request $request, ClientType $clientType)
     {
         $validated = $request->validate([
-            'label_en'   => 'sometimes|string|max:255',
-            'label_ar'   => 'nullable|string|max:255',
             'image'      => 'sometimes|image|mimes:jpeg,png,jpg,webp|max:2048',
             'sort_order' => 'integer',
             'is_active'  => 'boolean',

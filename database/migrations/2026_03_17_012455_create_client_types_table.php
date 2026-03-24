@@ -10,8 +10,6 @@ return new class extends Migration
     {
         Schema::create('client_types', function (Blueprint $table) {
             $table->id();
-            $table->string('label_en');
-            $table->string('label_ar')->nullable();
             $table->string('image');
             $table->integer('sort_order')->default(0);
             $table->boolean('is_active')->default(true);
