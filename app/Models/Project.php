@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Storage;
 
 class Project extends Model
 {
@@ -27,9 +28,16 @@ class Project extends Model
     protected function image(): Attribute
     {
         return Attribute::make(
-            get: fn (?string $value) => $value
-                ? (str_starts_with($value, 'http') ? $value : asset('storage/' . $value))
-                : null,
+            get: function (?string $value) {
+                if (! $value) {
+                    return null;
+                }
+                if (str_starts_with($value, 'http://') || str_starts_with($value, 'https://')) {
+                    return $value;
+                }
+
+                return Storage::disk('public')->url($value);
+            },
         );
     }
 }

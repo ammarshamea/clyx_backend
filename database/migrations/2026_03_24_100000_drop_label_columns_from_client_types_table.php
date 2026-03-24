@@ -11,9 +11,15 @@ return new class extends Migration
         if (! Schema::hasTable('client_types')) {
             return;
         }
+        // One column per alter: safer for SQLite / some MySQL builds.
+        Schema::table('client_types', function (Blueprint $table) {
+            if (Schema::hasColumn('client_types', 'label_ar')) {
+                $table->dropColumn('label_ar');
+            }
+        });
         Schema::table('client_types', function (Blueprint $table) {
             if (Schema::hasColumn('client_types', 'label_en')) {
-                $table->dropColumn(['label_en', 'label_ar']);
+                $table->dropColumn('label_en');
             }
         });
     }

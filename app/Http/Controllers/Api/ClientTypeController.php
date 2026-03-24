@@ -12,9 +12,11 @@ class ClientTypeController extends Controller
     // Public: for landing page
     public function landingIndex()
     {
-        return response()->json(
-            ClientType::where('is_active', true)->orderBy('sort_order')->orderBy('id')->get()
-        );
+        $rows = ClientType::where('is_active', true)->orderBy('sort_order')->orderBy('id')->get();
+
+        return response()
+            ->json($rows)
+            ->header('Cache-Control', 'private, no-store, must-revalidate');
     }
 
     // Protected: dashboard CRUD (apiResource)
@@ -35,10 +37,12 @@ class ClientTypeController extends Controller
         $validated = $request->validate([
             'image'      => 'required|image|mimes:jpeg,png,jpg,webp|max:2048',
             'sort_order' => 'integer',
-            'is_active'  => 'boolean',
+            'is_active'  => 'sometimes|boolean',
         ]);
 
         $validated['image'] = $request->file('image')->store('client-types', 'public');
+        $validated['is_active'] = $request->boolean('is_active', true);
+
         $clientType = ClientType::create($validated);
         return response()->json($clientType, 201);
     }
@@ -47,8 +51,8 @@ class ClientTypeController extends Controller
     {
         $validated = $request->validate([
             'image'      => 'sometimes|image|mimes:jpeg,png,jpg,webp|max:2048',
-            'sort_order' => 'integer',
-            'is_active'  => 'boolean',
+            'sort_order' => 'sometimes|integer',
+            'is_active'  => 'sometimes|boolean',
         ]);
 
         if ($request->hasFile('image')) {
