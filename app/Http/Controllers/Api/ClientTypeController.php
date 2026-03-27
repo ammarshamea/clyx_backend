@@ -35,7 +35,7 @@ class ClientTypeController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'image'      => 'required|image|mimes:jpeg,png,jpg,webp|max:2048',
+            'image'      => 'required|image|mimes:jpeg,png,jpg,webp|max:10240',
             'sort_order' => 'integer',
             'is_active'  => 'sometimes|boolean',
         ]);
@@ -50,7 +50,7 @@ class ClientTypeController extends Controller
     public function update(Request $request, ClientType $clientType)
     {
         $validated = $request->validate([
-            'image'      => 'sometimes|image|mimes:jpeg,png,jpg,webp|max:2048',
+            'image'      => 'sometimes|image|mimes:jpeg,png,jpg,webp|max:10240',
             'sort_order' => 'sometimes|integer',
             'is_active'  => 'sometimes|boolean',
         ]);
