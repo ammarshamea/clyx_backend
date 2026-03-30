@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Tenant;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Schema;
 use Exception;
 
 class TenantConnectionService
@@ -103,6 +104,24 @@ class TenantConnectionService
     }
 
     /**
+     * Laravel restaurant schema uses `total`; some schemas use `total_amount`.
+     */
+    private static function ordersAmountColumn(string $conn): string
+    {
+        if (!self::tableExists($conn, 'orders')) {
+            return 'total';
+        }
+        try {
+            if (Schema::connection($conn)->hasColumn('orders', 'total_amount')) {
+                return 'total_amount';
+            }
+        } catch (Exception) {
+            // ignore
+        }
+        return 'total';
+    }
+
+    /**
      * Get aggregated stats from a tenant DB.
      * Safely handles missing tables (returns 0 for each).
      */
@@ -117,10 +136,11 @@ class TenantConnectionService
             $hasUsers    = self::tableExists($conn, 'users');
             $hasProducts = self::tableExists($conn, 'products');
             $hasBranches = self::tableExists($conn, 'branches');
+            $amountCol     = self::ordersAmountColumn($conn);
 
             // Orders stats
             $totalOrders   = $hasOrders ? DB::connection($conn)->table('orders')->count() : 0;
-            $totalRevenue  = $hasOrders ? (float)(DB::connection($conn)->table('orders')->where('payment_status', 'paid')->sum('total_amount') ?? 0) : 0;
+            $totalRevenue  = $hasOrders ? (float)(DB::connection($conn)->table('orders')->where('payment_status', 'paid')->sum($amountCol) ?? 0) : 0;
             $todayOrders   = $hasOrders ? DB::connection($conn)->table('orders')->whereDate('created_at', today())->count() : 0;
             $pendingOrders = $hasOrders ? DB::connection($conn)->table('orders')->where('status', 'pending')->count() : 0;
 
@@ -141,7 +161,7 @@ class TenantConnectionService
                     $revenueByDay = DB::connection($conn)->table('orders')
                         ->where('payment_status', 'paid')
                         ->where('created_at', '>=', now()->subDays(7))
-                        ->selectRaw("{$dateExpr} as date, SUM(total_amount) as total")
+                        ->selectRaw("{$dateExpr} as date, SUM({$amountCol}) as total")
                         ->groupBy('date')
                         ->orderBy('date')
                         ->get()

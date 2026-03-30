@@ -76,6 +76,7 @@ Route::prefix('v1')->group(function () {
 
         // Tenant statistics (reads from tenant DB)
         Route::get('/stats', [StatsController::class, 'all']);
+        Route::get('/stats/slug/{slug}', [StatsController::class, 'bySlug']);
         Route::get('/stats/{tenant}', [StatsController::class, 'tenant']);
         Route::get('/stats/{tenant}/test', [StatsController::class, 'testConnection']);
 

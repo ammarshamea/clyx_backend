@@ -14,12 +14,23 @@ class StatsController extends Controller
         $stats = TenantConnectionService::getStats($tenant);
         return response()->json([
             'tenant' => [
-                'id'   => $tenant->id,
-                'name' => $tenant->name,
-                'slug' => $tenant->slug,
+                'id'      => $tenant->id,
+                'name'    => $tenant->name,
+                'name_ar' => $tenant->name_ar,
+                'slug'    => $tenant->slug,
             ],
             'stats' => $stats,
         ]);
+    }
+
+    /**
+     * Stats for a tenant resolved by slug (e.g. /resturant/{slug} in the dashboard).
+     */
+    public function bySlug(string $slug)
+    {
+        $tenant = Tenant::where('slug', $slug)->firstOrFail();
+
+        return $this->tenant($tenant);
     }
 
     // Stats for all tenants (aggregated)
@@ -32,10 +43,11 @@ class StatsController extends Controller
             $stats = TenantConnectionService::getStats($tenant);
             $results[] = [
                 'tenant' => [
-                    'id'     => $tenant->id,
-                    'name'   => $tenant->name,
-                    'slug'   => $tenant->slug,
-                    'status' => $tenant->status,
+                    'id'      => $tenant->id,
+                    'name'    => $tenant->name,
+                    'name_ar' => $tenant->name_ar,
+                    'slug'    => $tenant->slug,
+                    'status'  => $tenant->status,
                 ],
                 'stats' => $stats,
             ];
