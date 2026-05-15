@@ -15,6 +15,8 @@ class ContactController extends Controller
             'name'    => 'required|string|max:255',
             'email'   => 'required|email|max:255',
             'company' => 'nullable|string|max:255',
+            'service' => 'required|string|in:branding,marketing,web,not_sure',
+            'budget'  => 'required|string|in:under_20k,between_20_50k,between_50_100k,above_100k,discuss',
             'message' => 'required|string|max:5000',
         ]);
 

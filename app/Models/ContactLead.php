@@ -7,6 +7,6 @@ use Illuminate\Database\Eloquent\Model;
 class ContactLead extends Model
 {
     protected $fillable = [
-        'name', 'email', 'company', 'message', 'status', 'ip_address',
+        'name', 'email', 'company', 'service', 'budget', 'message', 'status', 'ip_address',
     ];
 }
