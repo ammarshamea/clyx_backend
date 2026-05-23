@@ -14,7 +14,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->statefulApi();
+        // Dashboard auth uses Sanctum bearer tokens (not cookie sessions), so statefulApi()
+        // would incorrectly require CSRF on public POST routes like /api/v1/contact.
         // cPanel / reverse proxy: set TRUSTED_PROXIES=true in .env so HTTPS & URL::forceScheme work
         if (filter_var(env('TRUSTED_PROXIES', false), FILTER_VALIDATE_BOOLEAN)) {
             $middleware->trustProxies(at: '*');
