@@ -18,57 +18,17 @@ jobs:
           script: |
             set -e
             DEPLOY_DIR=/var/www/clyxmain/backend
-            mkdir -p /var/www/clyxmain/backend
+            mkdir -p "$DEPLOY_DIR"
             if [ ! -d "$DEPLOY_DIR/.git" ]; then
               git clone --depth=1 git@github.com:ammarshamea/clyx_backend.git "$DEPLOY_DIR"
+              if [ ! -f "$DEPLOY_DIR/.env" ]; then
+                echo "ERROR: $DEPLOY_DIR/.env missing. Create it on the server first (see deployment docs)."
+                exit 1
+              fi
             fi
             cd "$DEPLOY_DIR"
             git fetch origin main
             git reset --hard origin/main
-
-            if [ ! -f .env ]; then
-              cp .env.example .env
-              CREATED_ENV=1
-            else
-              CREATED_ENV=0
-            fi
-
-            update_env() {
-              key="$1"
-              val="$2"
-              if grep -q "^${key}=" .env; then
-                sed -i "s|^${key}=.*|${key}=${val}|" .env
-              else
-                echo "${key}=${val}" >> .env
-              fi
-            }
-
-            update_env APP_NAME "${{ secrets.APP_NAME }}"
-            update_env APP_ENV "${{ secrets.APP_ENV }}"
-            update_env APP_DEBUG "false"
-            update_env APP_URL "${{ secrets.APP_URL }}"
-            update_env FRONTEND_URL "${{ secrets.FRONTEND_URL }}"
-            update_env LANDING_URL "${{ secrets.LANDING_URL }}"
-
-            # Only write DB secrets when .env was just created (avoid overwriting server .env)
-            if [ "$CREATED_ENV" = "1" ]; then
-              update_env DB_CONNECTION "${{ secrets.DB_CONNECTION }}"
-              update_env DB_HOST "${{ secrets.DB_HOST }}"
-              update_env DB_PORT "${{ secrets.DB_PORT }}"
-              update_env DB_DATABASE "${{ secrets.DB_DATABASE }}"
-              update_env DB_USERNAME "${{ secrets.DB_USERNAME }}"
-              update_env DB_PASSWORD "${{ secrets.DB_PASSWORD }}"
-            fi
-            update_env TRUSTED_PROXIES "true"
-            update_env SESSION_DRIVER "database"
-            update_env CACHE_STORE "database"
-            update_env QUEUE_CONNECTION "database"
-
-            if [ -n "${{ secrets.APP_KEY }}" ]; then
-              update_env APP_KEY "${{ secrets.APP_KEY }}"
-            elif ! grep -q '^APP_KEY=base64:' .env; then
-              php artisan key:generate --force
-            fi
 
             COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader --no-interaction
             php artisan migrate --force
