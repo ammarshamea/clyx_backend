@@ -1,0 +1,73 @@
+name: Deploy Clyx Backend
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: root
+          password: ${{ secrets.DEPLOY_PASSWORD }}
+          script_stop: true
+          script: |
+            set -e
+            DEPLOY_DIR=/var/www/clyxmain/backend
+            mkdir -p /var/www/clyxmain/backend
+            if [ ! -d "$DEPLOY_DIR/.git" ]; then
+              git clone --depth=1 git@github.com:ammarshamea/clyx_backend.git "$DEPLOY_DIR"
+            fi
+            cd "$DEPLOY_DIR"
+            git fetch origin main
+            git reset --hard origin/main
+
+            if [ ! -f .env ]; then
+              cp .env.example .env
+            fi
+
+            update_env() {
+              key="$1"
+              val="$2"
+              if grep -q "^${key}=" .env; then
+                sed -i "s|^${key}=.*|${key}=${val}|" .env
+              else
+                echo "${key}=${val}" >> .env
+              fi
+            }
+
+            update_env APP_NAME "${{ secrets.APP_NAME }}"
+            update_env APP_ENV "${{ secrets.APP_ENV }}"
+            update_env APP_DEBUG "false"
+            update_env APP_URL "${{ secrets.APP_URL }}"
+            update_env FRONTEND_URL "${{ secrets.FRONTEND_URL }}"
+            update_env LANDING_URL "${{ secrets.LANDING_URL }}"
+            update_env DB_CONNECTION "${{ secrets.DB_CONNECTION }}"
+            update_env DB_HOST "${{ secrets.DB_HOST }}"
+            update_env DB_PORT "${{ secrets.DB_PORT }}"
+            update_env DB_DATABASE "${{ secrets.DB_DATABASE }}"
+            update_env DB_USERNAME "${{ secrets.DB_USERNAME }}"
+            update_env DB_PASSWORD "${{ secrets.DB_PASSWORD }}"
+            update_env TRUSTED_PROXIES "true"
+            update_env SESSION_DRIVER "database"
+            update_env CACHE_STORE "database"
+            update_env QUEUE_CONNECTION "database"
+
+            if [ -n "${{ secrets.APP_KEY }}" ]; then
+              update_env APP_KEY "${{ secrets.APP_KEY }}"
+            elif ! grep -q '^APP_KEY=base64:' .env; then
+              php artisan key:generate --force
+            fi
+
+            COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader --no-interaction
+            php artisan migrate --force
+            php artisan storage:link || true
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+            chown -R www-data:www-data storage bootstrap/cache
+            chmod -R ug+rwX storage bootstrap/cache
