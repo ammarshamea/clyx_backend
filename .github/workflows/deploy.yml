@@ -28,6 +28,9 @@ jobs:
 
             if [ ! -f .env ]; then
               cp .env.example .env
+              CREATED_ENV=1
+            else
+              CREATED_ENV=0
             fi
 
             update_env() {
@@ -46,12 +49,16 @@ jobs:
             update_env APP_URL "${{ secrets.APP_URL }}"
             update_env FRONTEND_URL "${{ secrets.FRONTEND_URL }}"
             update_env LANDING_URL "${{ secrets.LANDING_URL }}"
-            update_env DB_CONNECTION "${{ secrets.DB_CONNECTION }}"
-            update_env DB_HOST "${{ secrets.DB_HOST }}"
-            update_env DB_PORT "${{ secrets.DB_PORT }}"
-            update_env DB_DATABASE "${{ secrets.DB_DATABASE }}"
-            update_env DB_USERNAME "${{ secrets.DB_USERNAME }}"
-            update_env DB_PASSWORD "${{ secrets.DB_PASSWORD }}"
+
+            # Only write DB secrets when .env was just created (avoid overwriting server .env)
+            if [ "$CREATED_ENV" = "1" ]; then
+              update_env DB_CONNECTION "${{ secrets.DB_CONNECTION }}"
+              update_env DB_HOST "${{ secrets.DB_HOST }}"
+              update_env DB_PORT "${{ secrets.DB_PORT }}"
+              update_env DB_DATABASE "${{ secrets.DB_DATABASE }}"
+              update_env DB_USERNAME "${{ secrets.DB_USERNAME }}"
+              update_env DB_PASSWORD "${{ secrets.DB_PASSWORD }}"
+            fi
             update_env TRUSTED_PROXIES "true"
             update_env SESSION_DRIVER "database"
             update_env CACHE_STORE "database"
