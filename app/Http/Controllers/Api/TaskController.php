@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Api\Concerns\ManagesTaskContent;
 use App\Http\Controllers\Controller;
 use App\Models\Task;
+use App\Models\TaskAttachment;
+use App\Models\TaskComment;
 use App\Models\User;
 use App\Models\WorkProject;
 use App\Services\NotificationService;
@@ -12,6 +15,8 @@ use Illuminate\Http\Request;
 
 class TaskController extends Controller
 {
+    use ManagesTaskContent;
+
     public function __construct(
         protected NotificationService $notifications,
         protected TaskWorkflowService $workflow,
@@ -92,12 +97,20 @@ class TaskController extends Controller
     public function show(Task $task)
     {
         $task->load([
-            'workProject',
+            'workProject.members:id,name,email,role',
             'assignees:id,name,email,role',
             'creator:id,name',
             'comments.user:id,name,role',
             'attachments.user:id,name',
         ]);
+
+        $perms = app(\App\Services\WorkProjectPermissionService::class);
+        if ($task->workProject && $task->workProject->relationLoaded('members')) {
+            $task->workProject->setAttribute(
+                'members',
+                $task->workProject->members->map(fn ($m) => $perms->formatMember($m))->values()
+            );
+        }
 
         return response()->json($task);
     }
@@ -263,5 +276,33 @@ class TaskController extends Controller
         }
 
         return response()->json($attachment->load('user:id,name'), 201);
+    }
+
+    public function updateComment(Request $request, Task $task, TaskComment $comment)
+    {
+        $response = $this->performUpdateComment($request, $task, $comment);
+        $this->notifyCommentUpdated($request->user(), $task, $comment->fresh()->body);
+
+        return $response;
+    }
+
+    public function destroyComment(Request $request, Task $task, TaskComment $comment)
+    {
+        return $this->performDeleteComment($request, $task, $comment);
+    }
+
+    public function renameAttachment(Request $request, Task $task, TaskAttachment $attachment)
+    {
+        return $this->performRenameAttachment($request, $task, $attachment);
+    }
+
+    public function replaceAttachment(Request $request, Task $task, TaskAttachment $attachment)
+    {
+        return $this->performReplaceAttachment($request, $task, $attachment);
+    }
+
+    public function destroyAttachment(Request $request, Task $task, TaskAttachment $attachment)
+    {
+        return $this->performDeleteAttachment($request, $task, $attachment);
     }
 }

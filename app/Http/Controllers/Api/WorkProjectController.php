@@ -8,13 +8,18 @@ use App\Models\TaskAttachment;
 use App\Models\TaskComment;
 use App\Models\User;
 use App\Models\WorkProject;
+use App\Services\WorkProjectPermissionService;
 use Illuminate\Http\Request;
 
 class WorkProjectController extends Controller
 {
+    public function __construct(
+        protected WorkProjectPermissionService $permissions,
+    ) {}
+
     public function index(Request $request)
     {
-        $query = WorkProject::with(['members:id,name,email', 'creator:id,name'])
+        $query = WorkProject::with(['members:id,name,email,role', 'creator:id,name'])
             ->withCount('tasks')
             ->latest();
 
@@ -22,32 +27,28 @@ class WorkProjectController extends Controller
             $query->where('status', $status);
         }
 
-        return response()->json($query->paginate(20));
+        $paginated = $query->paginate(20);
+        $paginated->getCollection()->transform(fn ($p) => $this->formatProject($p));
+
+        return response()->json($paginated);
     }
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'name'        => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'status'      => 'nullable|in:planning,active,on_hold,completed,archived',
-            'starts_at'   => 'nullable|date',
-            'due_at'      => 'nullable|date',
-            'member_ids'  => 'nullable|array',
-            'member_ids.*'=> 'exists:users,id',
-        ]);
+        $validated = $this->validateProject($request);
 
         $project = WorkProject::create([
-            ...$validated,
-            'created_by' => $request->user()->id,
-            'status'       => $validated['status'] ?? 'active',
+            'name'        => $validated['name'],
+            'description' => $validated['description'] ?? null,
+            'status'      => $validated['status'] ?? 'active',
+            'starts_at'   => $validated['starts_at'] ?? null,
+            'due_at'      => $validated['due_at'] ?? null,
+            'created_by'  => $request->user()->id,
         ]);
 
-        if (!empty($validated['member_ids'])) {
-            $project->members()->sync($validated['member_ids']);
-        }
+        $this->syncMembersFromRequest($project, $validated);
 
-        return response()->json($project->load(['members:id,name,email']), 201);
+        return response()->json($this->formatProject($project->load(['members:id,name,email,role'])), 201);
     }
 
     public function show(WorkProject $workProject)
@@ -78,28 +79,22 @@ class WorkProjectController extends Controller
                 ->get()
         );
 
-        return response()->json($workProject);
+        return response()->json($this->formatProject($workProject));
     }
 
     public function update(Request $request, WorkProject $workProject)
     {
-        $validated = $request->validate([
-            'name'        => 'sometimes|string|max:255',
-            'description' => 'nullable|string',
-            'status'      => 'sometimes|in:planning,active,on_hold,completed,archived',
-            'starts_at'   => 'nullable|date',
-            'due_at'      => 'nullable|date',
-            'member_ids'  => 'nullable|array',
-            'member_ids.*'=> 'exists:users,id',
-        ]);
+        $validated = $this->validateProject($request, true);
 
-        $workProject->update($validated);
+        $workProject->update(collect($validated)->only([
+            'name', 'description', 'status', 'starts_at', 'due_at',
+        ])->filter(fn ($v) => $v !== null)->toArray());
 
-        if (array_key_exists('member_ids', $validated)) {
-            $workProject->members()->sync($validated['member_ids'] ?? []);
+        if (array_key_exists('members', $validated) || array_key_exists('member_ids', $validated)) {
+            $this->syncMembersFromRequest($workProject, $validated);
         }
 
-        return response()->json($workProject->fresh(['members:id,name,email']));
+        return response()->json($this->formatProject($workProject->fresh(['members:id,name,email,role'])));
     }
 
     public function destroy(WorkProject $workProject)
@@ -114,15 +109,58 @@ class WorkProjectController extends Controller
         $tasks = Task::with(['workProject:id,name', 'assignees:id,name']);
 
         return response()->json([
-            'projects_total'   => WorkProject::count(),
-            'tasks_total'      => Task::count(),
-            'tasks_review'     => Task::where('status', 'review')->count(),
-            'tasks_overdue'    => Task::where('is_overdue', true)->where('status', '!=', 'done')->count(),
-            'tasks_in_progress'=> Task::where('status', 'in_progress')->count(),
-            'recent_tasks'     => $tasks->latest()->limit(10)->get(),
-            'staff_summary'    => User::where('role', 'staff')->where('is_active', true)
+            'projects_total'    => WorkProject::count(),
+            'tasks_total'       => Task::count(),
+            'tasks_review'      => Task::where('status', 'review')->count(),
+            'tasks_overdue'     => Task::where('is_overdue', true)->where('status', '!=', 'done')->count(),
+            'tasks_in_progress' => Task::where('status', 'in_progress')->count(),
+            'recent_tasks'      => $tasks->latest()->limit(10)->get(),
+            'staff_summary'     => User::where('role', 'staff')->where('is_active', true)
                 ->withCount(['assignedTasks'])
                 ->get(['id', 'name', 'email']),
         ]);
+    }
+
+    protected function validateProject(Request $request, bool $partial = false): array
+    {
+        $rules = [
+            'name'        => ($partial ? 'sometimes|' : '') . 'required|string|max:255',
+            'description' => 'nullable|string',
+            'status'      => 'nullable|in:planning,active,on_hold,completed,archived',
+            'starts_at'   => 'nullable|date',
+            'due_at'      => 'nullable|date',
+            'members'     => 'nullable|array',
+            'members.*.user_id' => 'required_with:members|exists:users,id',
+            'members.*.can_create_tasks' => 'boolean',
+            'members.*.can_edit_task_details' => 'boolean',
+            'members.*.can_assign_tasks' => 'boolean',
+            'members.*.can_delete_tasks' => 'boolean',
+            'members.*.can_moderate_content' => 'boolean',
+            'member_ids'  => 'nullable|array',
+            'member_ids.*'=> 'exists:users,id',
+        ];
+
+        return $request->validate($rules);
+    }
+
+    protected function syncMembersFromRequest(WorkProject $project, array $validated): void
+    {
+        if (!empty($validated['members'])) {
+            $this->permissions->syncMembers($project, $validated['members']);
+        } elseif (array_key_exists('member_ids', $validated)) {
+            $this->permissions->syncMemberIds($project, $validated['member_ids'] ?? []);
+        }
+    }
+
+    protected function formatProject(WorkProject $project): WorkProject
+    {
+        if ($project->relationLoaded('members')) {
+            $project->setAttribute(
+                'members',
+                $project->members->map(fn ($m) => $this->permissions->formatMember($m))->values()
+            );
+        }
+
+        return $project;
     }
 }

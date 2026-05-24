@@ -40,7 +40,15 @@ class User extends Authenticatable
 
     public function workProjects()
     {
-        return $this->belongsToMany(WorkProject::class, 'work_project_members')->withTimestamps();
+        return $this->belongsToMany(WorkProject::class, 'work_project_members')
+            ->withPivot([
+                'can_create_tasks',
+                'can_edit_task_details',
+                'can_assign_tasks',
+                'can_delete_tasks',
+                'can_moderate_content',
+            ])
+            ->withTimestamps();
     }
 
     public function assignedTasks()

@@ -66,10 +66,17 @@ Route::prefix('v1')->group(function () {
             Route::get('/overview', [StaffDashboardController::class, 'overview']);
             Route::get('/tasks', [StaffDashboardController::class, 'tasks']);
             Route::get('/work-projects', [StaffDashboardController::class, 'workProjects']);
+            Route::post('/work-projects/{work_project}/tasks', [StaffDashboardController::class, 'storeTask']);
             Route::get('/tasks/{task}', [StaffDashboardController::class, 'showTask']);
             Route::patch('/tasks/{task}', [StaffDashboardController::class, 'updateTask']);
+            Route::delete('/tasks/{task}', [StaffDashboardController::class, 'destroyTask']);
             Route::post('/tasks/{task}/comments', [StaffDashboardController::class, 'addComment']);
+            Route::patch('/tasks/{task}/comments/{comment}', [StaffDashboardController::class, 'updateComment']);
+            Route::delete('/tasks/{task}/comments/{comment}', [StaffDashboardController::class, 'destroyComment']);
             Route::post('/tasks/{task}/attachments', [StaffDashboardController::class, 'uploadAttachment']);
+            Route::patch('/tasks/{task}/attachments/{attachment}', [StaffDashboardController::class, 'renameAttachment']);
+            Route::post('/tasks/{task}/attachments/{attachment}/replace', [StaffDashboardController::class, 'replaceAttachment']);
+            Route::delete('/tasks/{task}/attachments/{attachment}', [StaffDashboardController::class, 'destroyAttachment']);
         });
 
         // Super admin: CMS + task management
@@ -112,7 +119,12 @@ Route::prefix('v1')->group(function () {
             Route::post('/tasks/{task}/approve', [TaskController::class, 'approve']);
             Route::post('/tasks/{task}/request-changes', [TaskController::class, 'requestChanges']);
             Route::post('/tasks/{task}/comments', [TaskController::class, 'addComment']);
+            Route::patch('/tasks/{task}/comments/{comment}', [TaskController::class, 'updateComment']);
+            Route::delete('/tasks/{task}/comments/{comment}', [TaskController::class, 'destroyComment']);
             Route::post('/tasks/{task}/attachments', [TaskController::class, 'uploadAttachment']);
+            Route::patch('/tasks/{task}/attachments/{attachment}', [TaskController::class, 'renameAttachment']);
+            Route::post('/tasks/{task}/attachments/{attachment}/replace', [TaskController::class, 'replaceAttachment']);
+            Route::delete('/tasks/{task}/attachments/{attachment}', [TaskController::class, 'destroyAttachment']);
 
             Route::apiResource('work-projects', WorkProjectController::class);
             Route::post('/work-projects/{work_project}/tasks', [TaskController::class, 'store']);
