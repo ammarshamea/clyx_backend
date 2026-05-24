@@ -32,4 +32,24 @@ class User extends Authenticatable
     {
         return $this->role === 'super_admin';
     }
+
+    public function isStaff(): bool
+    {
+        return $this->role === 'staff';
+    }
+
+    public function workProjects()
+    {
+        return $this->belongsToMany(WorkProject::class, 'work_project_members')->withTimestamps();
+    }
+
+    public function assignedTasks()
+    {
+        return $this->belongsToMany(Task::class, 'task_assignees')->withTimestamps();
+    }
+
+    public function appNotifications()
+    {
+        return $this->hasMany(AppNotification::class);
+    }
 }

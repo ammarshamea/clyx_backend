@@ -20,7 +20,7 @@ class UserController extends Controller
             'name'      => 'required|string|max:255',
             'email'     => 'required|email|unique:users,email',
             'password'  => 'required|min:8',
-            'role'      => 'required|in:super_admin,admin',
+            'role'      => 'required|in:super_admin,staff',
             'is_active' => 'boolean',
         ]);
 
@@ -41,7 +41,7 @@ class UserController extends Controller
             'name'      => 'sometimes|string|max:255',
             'email'     => "sometimes|email|unique:users,email,{$user->id}",
             'password'  => 'sometimes|min:8',
-            'role'      => 'sometimes|in:super_admin,admin',
+            'role'      => 'sometimes|in:super_admin,staff',
             'is_active' => 'boolean',
         ]);
 

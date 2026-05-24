@@ -4,16 +4,20 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ClientTypeController;
 use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\ProjectController;
 use App\Http\Controllers\Api\ProjectCategoryController;
 use App\Http\Controllers\Api\ContactInfoController;
 use App\Http\Controllers\Api\SiteSettingsController;
 use App\Http\Controllers\Api\SocialLinkController;
+use App\Http\Controllers\Api\StaffDashboardController;
 use App\Http\Controllers\Api\StatsController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\SubscriptionPlanController;
+use App\Http\Controllers\Api\TaskController;
 use App\Http\Controllers\Api\TenantController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\WorkProjectController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -24,30 +28,22 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
 
-    // Health check
     Route::get('/health', fn () => response()->json([
         'status' => 'ok',
         'app'    => config('app.name'),
     ]));
 
-    // ── Public: Contact form from Landing Page ──────────────────────────
     Route::post('/contact', [ContactController::class, 'store'])
         ->middleware('throttle:10,1');
 
-    // Public: Subscription plans (for landing page pricing page)
     Route::get('/plans', [SubscriptionPlanController::class, 'index']);
-
-    // Public: Projects & Client Types (for landing page)
     Route::get('/projects', [ProjectController::class, 'landingIndex']);
     Route::get('/projects/{slug}', [ProjectController::class, 'showBySlug'])->where('slug', '[a-z0-9\-]+');
     Route::get('/project-categories', [ProjectCategoryController::class, 'publicIndex']);
     Route::get('/client-types', [ClientTypeController::class, 'landingIndex']);
-
-    // Public: Contact info & Social links (for landing page)
     Route::get('/contact-info', [SiteSettingsController::class, 'contactInfo']);
     Route::get('/social-links', [SiteSettingsController::class, 'socialLinks']);
 
-    // ── Auth ─────────────────────────────────────────────────────────────
     Route::prefix('auth')->group(function () {
         Route::post('/login', [AuthController::class, 'login'])
             ->middleware('throttle:10,1');
@@ -58,46 +54,68 @@ Route::prefix('v1')->group(function () {
         });
     });
 
-    // ── Protected: Dashboard ─────────────────────────────────────────────
     Route::middleware('auth:sanctum')->group(function () {
 
-        // Overview stats
-        Route::get('/dashboard', [DashboardController::class, 'overview']);
+        // Notifications (all authenticated roles)
+        Route::get('/notifications', [NotificationController::class, 'index']);
+        Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead']);
+        Route::patch('/notifications/{notification}/read', [NotificationController::class, 'markRead']);
 
-        // Tenants
-        Route::apiResource('tenants', TenantController::class);
-        Route::get('/tenants/{tenant}/test-connection', [TenantController::class, 'testConnection']);
+        // Staff dashboard
+        Route::middleware('role:staff')->prefix('staff')->group(function () {
+            Route::get('/overview', [StaffDashboardController::class, 'overview']);
+            Route::get('/tasks', [StaffDashboardController::class, 'tasks']);
+            Route::get('/work-projects', [StaffDashboardController::class, 'workProjects']);
+            Route::get('/tasks/{task}', [StaffDashboardController::class, 'showTask']);
+            Route::patch('/tasks/{task}', [StaffDashboardController::class, 'updateTask']);
+            Route::post('/tasks/{task}/comments', [StaffDashboardController::class, 'addComment']);
+            Route::post('/tasks/{task}/attachments', [StaffDashboardController::class, 'uploadAttachment']);
+        });
 
-        // Subscription plans (admin management)
-        Route::apiResource('subscription-plans', SubscriptionPlanController::class);
+        // Super admin: CMS + task management
+        Route::middleware('super_admin')->group(function () {
 
-        // Subscriptions
-        Route::apiResource('subscriptions', SubscriptionController::class);
+            Route::get('/dashboard', [DashboardController::class, 'overview']);
 
-        // Tenant statistics (reads from tenant DB)
-        Route::get('/stats', [StatsController::class, 'all']);
-        Route::get('/stats/slug/{slug}', [StatsController::class, 'bySlug']);
-        Route::get('/stats/{tenant}', [StatsController::class, 'tenant']);
-        Route::get('/stats/{tenant}/test', [StatsController::class, 'testConnection']);
+            Route::apiResource('tenants', TenantController::class);
+            Route::get('/tenants/{tenant}/test-connection', [TenantController::class, 'testConnection']);
 
-        // Contact leads
-        Route::get('/leads', [ContactController::class, 'index']);
-        Route::patch('/leads/{contactLead}', [ContactController::class, 'update']);
-        Route::delete('/leads/{contactLead}', [ContactController::class, 'destroy']);
+            Route::apiResource('subscription-plans', SubscriptionPlanController::class);
+            Route::apiResource('subscriptions', SubscriptionController::class);
 
-        // Users (super_admin only in practice — enforce in middleware)
-        Route::apiResource('users', UserController::class);
+            Route::get('/stats', [StatsController::class, 'all']);
+            Route::get('/stats/slug/{slug}', [StatsController::class, 'bySlug']);
+            Route::get('/stats/{tenant}', [StatsController::class, 'tenant']);
+            Route::get('/stats/{tenant}/test', [StatsController::class, 'testConnection']);
 
-        // Projects (dashboard CRUD)
-        Route::apiResource('admin/projects', ProjectController::class);
+            Route::get('/leads', [ContactController::class, 'index']);
+            Route::patch('/leads/{contactLead}', [ContactController::class, 'update']);
+            Route::delete('/leads/{contactLead}', [ContactController::class, 'destroy']);
 
-        Route::apiResource('admin/project-categories', ProjectCategoryController::class);
+            Route::apiResource('users', UserController::class);
 
-        // Client Types (dashboard CRUD)
-        Route::apiResource('admin/client-types', ClientTypeController::class);
+            Route::apiResource('admin/projects', ProjectController::class);
+            Route::apiResource('admin/project-categories', ProjectCategoryController::class);
+            Route::apiResource('admin/client-types', ClientTypeController::class);
+            Route::apiResource('admin/contact-info', ContactInfoController::class)->only(['index', 'show', 'update']);
+            Route::apiResource('admin/social-links', SocialLinkController::class);
 
-        // Contact & Social settings (apiResource)
-        Route::apiResource('admin/contact-info', ContactInfoController::class)->only(['index', 'show', 'update']);
-        Route::apiResource('admin/social-links', SocialLinkController::class);
+            // Task management
+            Route::get('/tasks/dashboard', [WorkProjectController::class, 'dashboard']);
+            Route::get('/tasks', [TaskController::class, 'index']);
+            Route::post('/tasks', [TaskController::class, 'store']);
+            Route::get('/tasks/{task}', [TaskController::class, 'show']);
+            Route::put('/tasks/{task}', [TaskController::class, 'update']);
+            Route::patch('/tasks/{task}', [TaskController::class, 'update']);
+            Route::delete('/tasks/{task}', [TaskController::class, 'destroy']);
+            Route::post('/tasks/{task}/assign', [TaskController::class, 'assign']);
+            Route::post('/tasks/{task}/approve', [TaskController::class, 'approve']);
+            Route::post('/tasks/{task}/request-changes', [TaskController::class, 'requestChanges']);
+            Route::post('/tasks/{task}/comments', [TaskController::class, 'addComment']);
+            Route::post('/tasks/{task}/attachments', [TaskController::class, 'uploadAttachment']);
+
+            Route::apiResource('work-projects', WorkProjectController::class);
+            Route::post('/work-projects/{work_project}/tasks', [TaskController::class, 'store']);
+        });
     });
 });

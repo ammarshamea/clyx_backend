@@ -14,15 +14,15 @@ class CreateAdminUser extends Command
      * Examples (SSH on server, from project root):
      *   php artisan clyx:create-admin
      *   php artisan clyx:create-admin --email=you@domain.com --password="YourSecurePass123" --name="Site Admin"
-     *   php artisan clyx:create-admin --email=... --password=... --role=admin
+     *   php artisan clyx:create-admin --email=... --password=... --role=staff
      */
     protected $signature = 'clyx:create-admin
                             {--email= : Admin email}
                             {--password= : Plain password (min 8 characters)}
                             {--name= : Display name}
-                            {--role=super_admin : super_admin or admin}';
+                            {--role=super_admin : super_admin or staff}';
 
-    protected $description = 'Create a dashboard admin user (use on server instead of seeders).';
+    protected $description = 'Create a dashboard user (super_admin or staff).';
 
     public function handle(): int
     {
@@ -34,7 +34,7 @@ class CreateAdminUser extends Command
         $name = $this->option('name') ?: $this->ask('Full name', 'Admin');
 
         $roleOpt = strtolower((string) $this->option('role'));
-        $role = $roleOpt === 'admin' ? 'admin' : 'super_admin';
+        $role = $roleOpt === 'staff' ? 'staff' : 'super_admin';
 
         $validator = Validator::make(
             [

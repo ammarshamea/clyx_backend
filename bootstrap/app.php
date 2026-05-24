@@ -14,6 +14,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->alias([
+            'role'         => \App\Http\Middleware\EnsureRole::class,
+            'super_admin'  => \App\Http\Middleware\EnsureSuperAdmin::class,
+        ]);
         // Dashboard auth uses Sanctum bearer tokens (not cookie sessions), so statefulApi()
         // would incorrectly require CSRF on public POST routes like /api/v1/contact.
         // cPanel / reverse proxy: set TRUSTED_PROXIES=true in .env so HTTPS & URL::forceScheme work
