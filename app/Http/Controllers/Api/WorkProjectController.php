@@ -9,16 +9,20 @@ use App\Models\TaskComment;
 use App\Models\User;
 use App\Models\WorkProject;
 use App\Services\WorkProjectPermissionService;
+use App\Services\WorkProjectTrashService;
 use Illuminate\Http\Request;
 
 class WorkProjectController extends Controller
 {
     public function __construct(
         protected WorkProjectPermissionService $permissions,
+        protected WorkProjectTrashService $trash,
     ) {}
 
     public function index(Request $request)
     {
+        $this->trash->purgeExpired();
+
         $query = WorkProject::with(['members:id,name,email,role', 'creator:id,name'])
             ->withCount('tasks')
             ->latest();
@@ -108,6 +112,8 @@ class WorkProjectController extends Controller
 
     public function trashedIndex(Request $request)
     {
+        $this->trash->purgeExpired();
+
         $query = WorkProject::onlyTrashed()
             ->with(['members:id,name,email,role', 'creator:id,name'])
             ->withCount('tasks')

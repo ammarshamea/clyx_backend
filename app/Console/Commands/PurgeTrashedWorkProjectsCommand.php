@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Models\WorkProject;
+use App\Services\WorkProjectTrashService;
 use Illuminate\Console\Command;
 
 class PurgeTrashedWorkProjectsCommand extends Command
@@ -11,19 +11,11 @@ class PurgeTrashedWorkProjectsCommand extends Command
 
     protected $description = 'Permanently delete work projects that have been in trash longer than the retention period';
 
-    public function handle(): int
+    public function handle(WorkProjectTrashService $trash): int
     {
-        $cutoff = now()->subDays(WorkProject::TRASH_RETENTION_DAYS);
+        $count = $trash->purgeExpired();
 
-        $projects = WorkProject::onlyTrashed()
-            ->where('deleted_at', '<=', $cutoff)
-            ->get();
-
-        foreach ($projects as $project) {
-            $project->forceDelete();
-        }
-
-        $this->info("Permanently deleted {$projects->count()} work project(s).");
+        $this->info("Permanently deleted {$count} work project(s).");
 
         return self::SUCCESS;
     }
