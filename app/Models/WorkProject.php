@@ -6,9 +6,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class WorkProject extends Model
 {
+    use SoftDeletes;
+
+    public const TRASH_RETENTION_DAYS = 30;
+
     protected $fillable = [
         'name', 'description', 'status', 'starts_at', 'due_at', 'progress', 'created_by',
     ];
@@ -16,10 +21,35 @@ class WorkProject extends Model
     protected function casts(): array
     {
         return [
-            'starts_at' => 'date',
-            'due_at'    => 'date',
-            'progress'  => 'integer',
+            'starts_at'  => 'date',
+            'due_at'     => 'date',
+            'progress'   => 'integer',
+            'deleted_at' => 'datetime',
         ];
+    }
+
+    public function purgeAt(): ?\Illuminate\Support\Carbon
+    {
+        if (!$this->deleted_at) {
+            return null;
+        }
+
+        return $this->deleted_at->copy()->addDays(self::TRASH_RETENTION_DAYS);
+    }
+
+    public function daysUntilPurge(): ?int
+    {
+        $purgeAt = $this->purgeAt();
+
+        if (!$purgeAt) {
+            return null;
+        }
+
+        if ($purgeAt->isPast()) {
+            return 0;
+        }
+
+        return (int) now()->startOfDay()->diffInDays($purgeAt->startOfDay());
     }
 
     public function creator(): BelongsTo

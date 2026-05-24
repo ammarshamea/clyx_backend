@@ -25,6 +25,7 @@ class TaskController extends Controller
     public function index(Request $request)
     {
         $query = Task::with(['workProject:id,name', 'assignees:id,name,email', 'creator:id,name'])
+            ->whereHas('workProject')
             ->latest();
 
         if ($request->filled('work_project_id')) {

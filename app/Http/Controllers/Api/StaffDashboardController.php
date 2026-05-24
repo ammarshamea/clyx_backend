@@ -30,6 +30,7 @@ class StaffDashboardController extends Controller
         $userId = $request->user()->id;
 
         return Task::with(['workProject:id,name', 'assignees:id,name'])
+            ->whereHas('workProject')
             ->where(function ($q) use ($userId) {
                 $q->whereHas('assignees', fn ($a) => $a->where('users.id', $userId))
                     ->orWhereHas('workProject.members', fn ($m) => $m->where('users.id', $userId));

@@ -10,3 +10,4 @@ Artisan::command('inspire', function () {
 
 Schedule::command('tasks:mark-overdue')->dailyAt('08:00');
 Schedule::command('tasks:send-due-reminders')->dailyAt('09:00');
+Schedule::command('work-projects:purge-trashed')->dailyAt('03:00');

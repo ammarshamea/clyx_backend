@@ -126,6 +126,8 @@ Route::prefix('v1')->group(function () {
             Route::post('/tasks/{task}/attachments/{attachment}/replace', [TaskController::class, 'replaceAttachment']);
             Route::delete('/tasks/{task}/attachments/{attachment}', [TaskController::class, 'destroyAttachment']);
 
+            Route::get('/work-projects/trashed', [WorkProjectController::class, 'trashedIndex']);
+            Route::post('/work-projects/{id}/restore', [WorkProjectController::class, 'restore']);
             Route::apiResource('work-projects', WorkProjectController::class);
             Route::post('/work-projects/{work_project}/tasks', [TaskController::class, 'store']);
         });

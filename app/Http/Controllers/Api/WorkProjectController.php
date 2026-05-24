@@ -101,12 +101,39 @@ class WorkProjectController extends Controller
     {
         $workProject->delete();
 
-        return response()->json(['message' => 'Work project deleted.']);
+        return response()->json([
+            'message' => 'Work project moved to trash. It can be restored within ' . WorkProject::TRASH_RETENTION_DAYS . ' days.',
+        ]);
+    }
+
+    public function trashedIndex(Request $request)
+    {
+        $query = WorkProject::onlyTrashed()
+            ->with(['members:id,name,email,role', 'creator:id,name'])
+            ->withCount('tasks')
+            ->orderByDesc('deleted_at');
+
+        $paginated = $query->paginate(20);
+        $paginated->getCollection()->transform(fn ($p) => $this->formatTrashedProject($p));
+
+        return response()->json($paginated);
+    }
+
+    public function restore(int $id)
+    {
+        $project = WorkProject::onlyTrashed()->findOrFail($id);
+        $project->restore();
+
+        return response()->json([
+            'message' => 'Work project restored.',
+            'project' => $this->formatProject($project->fresh(['members:id,name,email,role'])),
+        ]);
     }
 
     public function dashboard(Request $request)
     {
-        $tasks = Task::with(['workProject:id,name', 'assignees:id,name']);
+        $tasks = Task::with(['workProject:id,name', 'assignees:id,name'])
+            ->whereHas('workProject');
 
         return response()->json([
             'projects_total'    => WorkProject::count(),
@@ -160,6 +187,16 @@ class WorkProjectController extends Controller
                 $project->members->map(fn ($m) => $this->permissions->formatMember($m))->values()
             );
         }
+
+        return $project;
+    }
+
+    protected function formatTrashedProject(WorkProject $project): WorkProject
+    {
+        $project = $this->formatProject($project);
+        $project->setAttribute('deleted_at', $project->deleted_at?->toIso8601String());
+        $project->setAttribute('purge_at', $project->purgeAt()?->toIso8601String());
+        $project->setAttribute('days_until_purge', $project->daysUntilPurge());
 
         return $project;
     }
