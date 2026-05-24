@@ -15,23 +15,30 @@ class TaskNotificationMail extends Mailable
     public function __construct(
         public string $mailSubject,
         public string $mailBody,
+        public string $eventLabel = '',
+        public ?string $recipientName = null,
+        public ?string $taskLink = null,
         public array $extra = [],
     ) {}
 
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: $this->mailSubject,
+            subject: '[CLYX] ' . $this->mailSubject,
         );
     }
 
     public function content(): Content
     {
         return new Content(
-            htmlString: '<div dir="rtl" style="font-family:sans-serif;line-height:1.6">'
-                .'<h2>'.e($this->mailSubject).'</h2>'
-                .'<p>'.nl2br(e($this->mailBody)).'</p>'
-                .'</div>',
+            view: 'mail.task-notification',
+            with: [
+                'mailSubject'    => $this->mailSubject,
+                'mailBody'       => $this->mailBody,
+                'eventLabel'     => $this->eventLabel,
+                'recipientName'  => $this->recipientName,
+                'taskLink'       => $this->taskLink,
+            ],
         );
     }
 }
