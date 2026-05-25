@@ -8,6 +8,11 @@ class WorkProjectMember extends Pivot
 {
     protected $table = 'work_project_members';
 
+    /** Table uses an auto-increment id, not a composite pivot key. */
+    public $incrementing = true;
+
+    protected $primaryKey = 'id';
+
     protected $fillable = [
         'work_project_id',
         'user_id',

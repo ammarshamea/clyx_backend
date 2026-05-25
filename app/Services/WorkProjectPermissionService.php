@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Models\WorkProject;
+use App\Models\WorkProjectMember;
 
 class WorkProjectPermissionService
 {
@@ -59,15 +60,34 @@ class WorkProjectPermissionService
      */
     public function syncMembers(WorkProject $project, array $membersPayload): void
     {
-        $sync = [];
+        $keepUserIds = [];
+
         foreach ($membersPayload as $row) {
             $userId = (int) ($row['user_id'] ?? 0);
             if ($userId < 1) {
                 continue;
             }
-            $sync[$userId] = $this->normalizePivotRow($row);
+
+            $keepUserIds[] = $userId;
+            $pivotData = $this->normalizePivotRow($row);
+
+            WorkProjectMember::query()->updateOrCreate(
+                [
+                    'work_project_id' => $project->id,
+                    'user_id'         => $userId,
+                ],
+                $pivotData,
+            );
         }
-        $project->members()->sync($sync);
+
+        $query = WorkProjectMember::query()->where('work_project_id', $project->id);
+        if ($keepUserIds === []) {
+            $query->delete();
+        } else {
+            $query->whereNotIn('user_id', $keepUserIds)->delete();
+        }
+
+        $project->unsetRelation('members');
     }
 
     /**
@@ -109,6 +129,14 @@ class WorkProjectPermissionService
     /**
      * @param  array<string, mixed>  $row
      */
+    public function normalizeMemberRow(array $row): array
+    {
+        return [
+            'user_id' => (int) ($row['user_id'] ?? 0),
+            ...$this->normalizePivotRow($row),
+        ];
+    }
+
     protected function normalizePivotRow(array $row): array
     {
         $out = $this->defaults();

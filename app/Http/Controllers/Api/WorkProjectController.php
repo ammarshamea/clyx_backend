@@ -173,7 +173,16 @@ class WorkProjectController extends Controller
             'member_ids.*'=> 'exists:users,id',
         ];
 
-        return $request->validate($rules);
+        $validated = $request->validate($rules);
+
+        if (!empty($validated['members'])) {
+            $validated['members'] = array_values(array_map(
+                fn (array $row) => $this->permissions->normalizeMemberRow($row),
+                $validated['members'],
+            ));
+        }
+
+        return $validated;
     }
 
     protected function syncMembersFromRequest(WorkProject $project, array $validated): void
