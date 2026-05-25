@@ -100,7 +100,7 @@ class WorkProjectPermissionService
     {
         $perms = $this->defaults();
         foreach (self::PERMISSION_KEYS as $key) {
-            $perms[$key] = (bool) ($pivot->{$key} ?? false);
+            $perms[$key] = $this->toBool($pivot->{$key} ?? false);
         }
 
         return $perms;
@@ -113,11 +113,16 @@ class WorkProjectPermissionService
     {
         $out = $this->defaults();
         foreach (self::PERMISSION_KEYS as $key) {
-            if (array_key_exists($key, $row)) {
-                $out[$key] = (bool) $row[$key];
-            }
+            $out[$key] = array_key_exists($key, $row)
+                ? $this->toBool($row[$key])
+                : false;
         }
 
         return $out;
+    }
+
+    protected function toBool(mixed $value): bool
+    {
+        return filter_var($value, FILTER_VALIDATE_BOOLEAN);
     }
 }

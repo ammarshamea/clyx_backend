@@ -75,7 +75,7 @@ class StaffDashboardController extends Controller
         $user = $request->user();
         $userId = $user->id;
 
-        $projects = WorkProject::with(['members:id,name,email,role'])
+        $projects = WorkProject::with(['members'])
             ->withCount('tasks')
             ->where(function ($q) use ($userId) {
                 $q->whereHas('members', fn ($m) => $m->where('users.id', $userId))
@@ -171,9 +171,11 @@ class StaffDashboardController extends Controller
         }
 
         $task->load([
-            'workProject.members:id,name,email,role',
+            'workProject.members',
             'assignees:id,name,email',
             'comments.user:id,name,role',
+            'comments.replyTo',
+            'comments.replyTo.user:id,name,role',
             'attachments.user:id,name',
         ]);
 
@@ -279,12 +281,20 @@ class StaffDashboardController extends Controller
             return response()->json(['message' => 'Forbidden.'], 403);
         }
 
-        $validated = $request->validate(['body' => 'required|string|max:5000']);
+        $validated = $request->validate([
+            'body'        => 'required|string|max:5000',
+            'reply_to_id' => [
+                'nullable',
+                'integer',
+                \Illuminate\Validation\Rule::exists('task_comments', 'id')->where('task_id', $task->id),
+            ],
+        ]);
 
         $comment = $task->comments()->create([
-            'user_id' => $request->user()->id,
-            'body'    => $validated['body'],
-            'type'    => 'comment',
+            'user_id'     => $request->user()->id,
+            'body'        => $validated['body'],
+            'type'        => 'comment',
+            'reply_to_id' => $validated['reply_to_id'] ?? null,
         ]);
 
         foreach (User::where('role', 'super_admin')->where('is_active', true)->get() as $admin) {
@@ -297,7 +307,7 @@ class StaffDashboardController extends Controller
             );
         }
 
-        return response()->json($comment->load('user:id,name,role'), 201);
+        return response()->json($comment->load(['user:id,name,role', 'replyTo.user:id,name,role']), 201);
     }
 
     public function updateComment(Request $request, Task $task, TaskComment $comment)

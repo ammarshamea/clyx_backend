@@ -23,7 +23,7 @@ class WorkProjectController extends Controller
     {
         $this->trash->purgeExpired();
 
-        $query = WorkProject::with(['members:id,name,email,role', 'creator:id,name'])
+        $query = WorkProject::with(['members', 'creator:id,name'])
             ->withCount('tasks')
             ->latest();
 
@@ -52,13 +52,13 @@ class WorkProjectController extends Controller
 
         $this->syncMembersFromRequest($project, $validated);
 
-        return response()->json($this->formatProject($project->load(['members:id,name,email,role'])), 201);
+        return response()->json($this->formatProject($project->load(['members'])), 201);
     }
 
     public function show(WorkProject $workProject)
     {
         $workProject->load([
-            'members:id,name,email,role',
+            'members',
             'creator:id,name',
             'tasks.assignees:id,name,email',
         ]);
@@ -98,7 +98,7 @@ class WorkProjectController extends Controller
             $this->syncMembersFromRequest($workProject, $validated);
         }
 
-        return response()->json($this->formatProject($workProject->fresh(['members:id,name,email,role'])));
+        return response()->json($this->formatProject($workProject->fresh(['members'])));
     }
 
     public function destroy(WorkProject $workProject)
@@ -115,7 +115,7 @@ class WorkProjectController extends Controller
         $this->trash->purgeExpired();
 
         $query = WorkProject::onlyTrashed()
-            ->with(['members:id,name,email,role', 'creator:id,name'])
+            ->with(['members', 'creator:id,name'])
             ->withCount('tasks')
             ->orderByDesc('deleted_at');
 
@@ -132,7 +132,7 @@ class WorkProjectController extends Controller
 
         return response()->json([
             'message' => 'Work project restored.',
-            'project' => $this->formatProject($project->fresh(['members:id,name,email,role'])),
+            'project' => $this->formatProject($project->fresh(['members'])),
         ]);
     }
 

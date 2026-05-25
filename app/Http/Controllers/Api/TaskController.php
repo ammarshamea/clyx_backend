@@ -98,10 +98,12 @@ class TaskController extends Controller
     public function show(Task $task)
     {
         $task->load([
-            'workProject.members:id,name,email,role',
+            'workProject.members',
             'assignees:id,name,email,role',
             'creator:id,name',
             'comments.user:id,name,role',
+            'comments.replyTo',
+            'comments.replyTo.user:id,name,role',
             'attachments.user:id,name',
         ]);
 
@@ -218,12 +220,20 @@ class TaskController extends Controller
 
     public function addComment(Request $request, Task $task)
     {
-        $validated = $request->validate(['body' => 'required|string|max:5000']);
+        $validated = $request->validate([
+            'body'        => 'required|string|max:5000',
+            'reply_to_id' => [
+                'nullable',
+                'integer',
+                \Illuminate\Validation\Rule::exists('task_comments', 'id')->where('task_id', $task->id),
+            ],
+        ]);
 
         $comment = $task->comments()->create([
-            'user_id' => $request->user()->id,
-            'body'    => $validated['body'],
-            'type'    => 'comment',
+            'user_id'     => $request->user()->id,
+            'body'        => $validated['body'],
+            'type'        => 'comment',
+            'reply_to_id' => $validated['reply_to_id'] ?? null,
         ]);
 
         $recipients = $request->user()->isSuperAdmin()
@@ -243,7 +253,7 @@ class TaskController extends Controller
             );
         }
 
-        return response()->json($comment->load('user:id,name,role'), 201);
+        return response()->json($comment->load(['user:id,name,role', 'replyTo.user:id,name,role']), 201);
     }
 
     public function uploadAttachment(Request $request, Task $task)
