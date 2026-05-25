@@ -131,6 +131,9 @@ class TaskController extends Controller
             'assignee_ids.*' => 'exists:users,id',
         ]);
 
+        $task->load('assignees');
+        $oldAssigneeIds = $task->assignees->pluck('id')->all();
+
         $task->update(collect($validated)->except('assignee_ids')->toArray());
         $task->update(['updated_by' => $request->user()->id]);
 
@@ -142,6 +145,31 @@ class TaskController extends Controller
             $task->assignees()->sync($sync);
         }
 
+        $task->refresh()->load('assignees');
+        $newAssigneeIds = $task->assignees->pluck('id')->all();
+
+        foreach (array_diff($newAssigneeIds, $oldAssigneeIds) as $uid) {
+            $assignee = User::find($uid);
+            if ($assignee) {
+                $this->notifications->notify(
+                    $assignee,
+                    'task_assigned',
+                    'تم تكليفك بمهمة',
+                    "المهمة: {$task->title}",
+                    ['task_id' => $task->id],
+                );
+            }
+        }
+
+        $this->notifications->notifyTaskAssignees(
+            $task,
+            'task_updated',
+            'تحديث على المهمة',
+            "{$request->user()->name} حدّث «{$task->title}»",
+            ['task_id' => $task->id],
+            $request->user()->id,
+        );
+
         $task->workProject->recalculateProgress();
 
         return response()->json($task->fresh(['workProject', 'assignees']));
@@ -150,6 +178,16 @@ class TaskController extends Controller
     public function destroy(Task $task)
     {
         $project = $task->workProject;
+        $task->load('assignees');
+
+        $this->notifications->notifyTaskAssignees(
+            $task,
+            'task_deleted',
+            'تم حذف المهمة',
+            "«{$task->title}»",
+            ['task_id' => $task->id],
+        );
+
         $task->delete();
         $project->recalculateProgress();
 
@@ -236,22 +274,14 @@ class TaskController extends Controller
             'reply_to_id' => $validated['reply_to_id'] ?? null,
         ]);
 
-        $recipients = $request->user()->isSuperAdmin()
-            ? $task->assignees
-            : User::where('role', 'super_admin')->where('is_active', true)->get();
-
-        foreach ($recipients as $recipient) {
-            if ($recipient->id === $request->user()->id) {
-                continue;
-            }
-            $this->notifications->notify(
-                $recipient,
-                'comment_added',
-                'تعليق جديد على المهمة',
-                "{$request->user()->name}: {$validated['body']}",
-                ['task_id' => $task->id],
-            );
-        }
+        $this->notifications->notifyTaskStakeholders(
+            $task,
+            'comment_added',
+            'تعليق جديد على المهمة',
+            "{$request->user()->name}: {$validated['body']}",
+            ['task_id' => $task->id],
+            $request->user()->id,
+        );
 
         return response()->json($comment->load(['user:id,name,role,avatar', 'replyTo.user:id,name,role,avatar']), 201);
     }
@@ -273,18 +303,14 @@ class TaskController extends Controller
             'size'          => $file->getSize(),
         ]);
 
-        $admins = User::where('role', 'super_admin')->where('is_active', true)->get();
-        foreach ($admins as $admin) {
-            if ($admin->id !== $request->user()->id) {
-                $this->notifications->notify(
-                    $admin,
-                    'attachment_uploaded',
-                    'مرفق جديد على مهمة',
-                    "{$request->user()->name} رفع ملفاً على {$task->title}",
-                    ['task_id' => $task->id],
-                );
-            }
-        }
+        $this->notifications->notifyTaskStakeholders(
+            $task,
+            'attachment_uploaded',
+            'مرفق جديد على المهمة',
+            "{$request->user()->name} رفع «{$file->getClientOriginalName()}» على {$task->title}",
+            ['task_id' => $task->id],
+            $request->user()->id,
+        );
 
         return response()->json($attachment->load('user:id,name,avatar'), 201);
     }

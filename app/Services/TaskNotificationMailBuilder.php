@@ -7,17 +7,22 @@ use App\Models\User;
 class TaskNotificationMailBuilder
 {
     public const EVENT_LABELS = [
-        'task_assigned'         => 'تكليف بمهمة جديدة',
-        'task_updated'          => 'تحديث على مهمة',
-        'task_created'          => 'مهمة جديدة في المشروع',
-        'comment_added'         => 'تعليق جديد',
-        'comment_updated'       => 'تعديل تعليق',
-        'attachment_uploaded'   => 'مرفق جديد',
-        'task_review_requested' => 'مهمة بانتظار المراجعة',
-        'task_approved'         => 'تم اعتماد المهمة',
-        'task_changes_requested'=> 'طلب تعديل على المهمة',
-        'task_due_soon'         => 'موعد تسليم قريب',
-        'task_overdue'          => 'مهمة متأخرة',
+        'task_assigned'          => 'تكليف بمهمة جديدة',
+        'task_updated'           => 'تحديث على مهمة',
+        'task_created'           => 'مهمة جديدة في المشروع',
+        'task_deleted'           => 'تم حذف المهمة',
+        'comment_added'          => 'تعليق جديد',
+        'comment_updated'        => 'تعديل تعليق',
+        'comment_deleted'        => 'حذف تعليق',
+        'attachment_uploaded'    => 'مرفق جديد',
+        'attachment_renamed'     => 'تعديل اسم مرفق',
+        'attachment_replaced'    => 'استبدال مرفق',
+        'attachment_deleted'       => 'حذف مرفق',
+        'task_review_requested'  => 'مهمة بانتظار المراجعة',
+        'task_approved'          => 'تم اعتماد المهمة',
+        'task_changes_requested' => 'طلب تعديل على المهمة',
+        'task_due_soon'          => 'موعد تسليم قريب',
+        'task_overdue'           => 'مهمة متأخرة',
     ];
 
     public function eventLabel(string $type): string

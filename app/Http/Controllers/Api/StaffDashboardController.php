@@ -231,27 +231,31 @@ class StaffDashboardController extends Controller
             }
         }
 
-        $admins = User::where('role', 'super_admin')->where('is_active', true)->get();
-        foreach ($admins as $admin) {
-            $this->notifications->notify(
-                $admin,
-                'task_updated',
-                'تحديث على مهمة',
-                "{$request->user()->name} حدّث «{$task->title}» إلى {$task->progress}%",
-                ['task_id' => $task->id],
-            );
-        }
+        $this->notifications->notifyTaskStakeholders(
+            $task,
+            'task_updated',
+            'تحديث على مهمة',
+            "{$request->user()->name} حدّث «{$task->title}» إلى {$task->progress}%",
+            ['task_id' => $task->id],
+            $request->user()->id,
+        );
 
         if (($validated['progress'] ?? $before) >= 100 || $task->status === 'review') {
-            foreach ($admins as $admin) {
-                $this->notifications->notify(
-                    $admin,
-                    'task_review_requested',
-                    'مهمة بانتظار المراجعة',
-                    "{$task->title} جاهزة للمراجعة.",
-                    ['task_id' => $task->id],
-                );
-            }
+            $this->notifications->notifyAdmins(
+                'task_review_requested',
+                'مهمة بانتظار المراجعة',
+                "{$task->title} جاهزة للمراجعة.",
+                ['task_id' => $task->id],
+                $request->user()->id,
+            );
+            $this->notifications->notifyTaskAssignees(
+                $task,
+                'task_review_requested',
+                'تم إرسال المهمة للمراجعة',
+                "«{$task->title}» بانتظار اعتماد الإدارة.",
+                ['task_id' => $task->id],
+                $request->user()->id,
+            );
         }
 
         return response()->json($task->fresh(['workProject', 'assignees']));
@@ -269,6 +273,17 @@ class StaffDashboardController extends Controller
         }
 
         $project = $task->workProject;
+        $task->load('assignees');
+
+        $this->notifications->notifyTaskStakeholders(
+            $task,
+            'task_deleted',
+            'تم حذف المهمة',
+            "{$request->user()->name} حذف «{$task->title}»",
+            ['task_id' => $task->id],
+            $request->user()->id,
+        );
+
         $task->delete();
         $project->recalculateProgress();
 
@@ -297,15 +312,14 @@ class StaffDashboardController extends Controller
             'reply_to_id' => $validated['reply_to_id'] ?? null,
         ]);
 
-        foreach (User::where('role', 'super_admin')->where('is_active', true)->get() as $admin) {
-            $this->notifications->notify(
-                $admin,
-                'comment_added',
-                'تعليق من موظف',
-                "{$request->user()->name}: {$validated['body']}",
-                ['task_id' => $task->id],
-            );
-        }
+        $this->notifications->notifyTaskStakeholders(
+            $task,
+            'comment_added',
+            'تعليق جديد على المهمة',
+            "{$request->user()->name}: {$validated['body']}",
+            ['task_id' => $task->id],
+            $request->user()->id,
+        );
 
         return response()->json($comment->load(['user:id,name,role,avatar', 'replyTo.user:id,name,role,avatar']), 201);
     }
@@ -341,17 +355,14 @@ class StaffDashboardController extends Controller
             'size'          => $file->getSize(),
         ]);
 
-        foreach (User::where('role', 'super_admin')->where('is_active', true)->get() as $admin) {
-            if ($admin->id !== $request->user()->id) {
-                $this->notifications->notify(
-                    $admin,
-                    'attachment_uploaded',
-                    'مرفق جديد',
-                    "{$request->user()->name} رفع ملفاً على {$task->title}",
-                    ['task_id' => $task->id],
-                );
-            }
-        }
+        $this->notifications->notifyTaskStakeholders(
+            $task,
+            'attachment_uploaded',
+            'مرفق جديد على المهمة',
+            "{$request->user()->name} رفع «{$file->getClientOriginalName()}» على {$task->title}",
+            ['task_id' => $task->id],
+            $request->user()->id,
+        );
 
         return response()->json($attachment->load('user:id,name,avatar'), 201);
     }

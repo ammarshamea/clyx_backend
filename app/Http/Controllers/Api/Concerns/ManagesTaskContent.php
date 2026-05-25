@@ -88,7 +88,17 @@ trait ManagesTaskContent
             abort(403, 'Forbidden.');
         }
 
+        $snippet = \Illuminate\Support\Str::limit($comment->body, 120);
         $comment->delete();
+
+        app(NotificationService::class)->notifyTaskStakeholders(
+            $task,
+            'comment_deleted',
+            'حذف تعليق على المهمة',
+            "{$request->user()->name} حذف تعليقاً: {$snippet}",
+            ['task_id' => $task->id],
+            $request->user()->id,
+        );
 
         return response()->json(['message' => 'Comment deleted.']);
     }
@@ -110,6 +120,15 @@ trait ManagesTaskContent
         ]);
 
         $attachment->update(['original_name' => $validated['original_name']]);
+
+        app(NotificationService::class)->notifyTaskStakeholders(
+            $task,
+            'attachment_renamed',
+            'تعديل اسم مرفق',
+            "{$request->user()->name} غيّر اسم الملف إلى «{$validated['original_name']}» على {$task->title}",
+            ['task_id' => $task->id],
+            $request->user()->id,
+        );
 
         return response()->json($attachment->fresh('user:id,name,avatar'));
     }
@@ -142,6 +161,15 @@ trait ManagesTaskContent
             'user_id'       => $request->user()->id,
         ]);
 
+        app(NotificationService::class)->notifyTaskStakeholders(
+            $task,
+            'attachment_replaced',
+            'استبدال مرفق',
+            "{$request->user()->name} استبدل ملفاً على {$task->title}",
+            ['task_id' => $task->id],
+            $request->user()->id,
+        );
+
         return response()->json($attachment->fresh('user:id,name,avatar'));
     }
 
@@ -160,29 +188,31 @@ trait ManagesTaskContent
         if ($attachment->path) {
             Storage::disk('public')->delete($attachment->path);
         }
+
+        $fileName = $attachment->original_name;
         $attachment->delete();
+
+        app(NotificationService::class)->notifyTaskStakeholders(
+            $task,
+            'attachment_deleted',
+            'حذف مرفق',
+            "{$request->user()->name} حذف «{$fileName}» من {$task->title}",
+            ['task_id' => $task->id],
+            $request->user()->id,
+        );
 
         return response()->json(['message' => 'Attachment deleted.']);
     }
 
     protected function notifyCommentUpdated(User $actor, Task $task, string $body): void
     {
-        $notifications = app(NotificationService::class);
-        $recipients = $actor->isSuperAdmin()
-            ? $task->assignees
-            : User::where('role', 'super_admin')->where('is_active', true)->get();
-
-        foreach ($recipients as $recipient) {
-            if ($recipient->id === $actor->id) {
-                continue;
-            }
-            $notifications->notify(
-                $recipient,
-                'comment_updated',
-                'تعديل تعليق على المهمة',
-                "{$actor->name}: {$body}",
-                ['task_id' => $task->id],
-            );
-        }
+        app(NotificationService::class)->notifyTaskStakeholders(
+            $task,
+            'comment_updated',
+            'تعديل تعليق على المهمة',
+            "{$actor->name}: {$body}",
+            ['task_id' => $task->id],
+            $actor->id,
+        );
     }
 }
