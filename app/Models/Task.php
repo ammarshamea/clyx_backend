@@ -52,7 +52,7 @@ class Task extends Model
 
     public function comments(): HasMany
     {
-        return $this->hasMany(TaskComment::class)->latest();
+        return $this->hasMany(TaskComment::class)->oldest();
     }
 
     public function attachments(): HasMany
