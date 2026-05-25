@@ -73,7 +73,7 @@ trait ManagesTaskContent
         $validated = $request->validate(['body' => 'required|string|max:5000']);
         $comment->update(['body' => $validated['body']]);
 
-        return response()->json($comment->fresh('user:id,name,role'));
+        return response()->json($comment->fresh('user:id,name,role,avatar'));
     }
 
     protected function performDeleteComment(Request $request, Task $task, TaskComment $comment)
@@ -111,7 +111,7 @@ trait ManagesTaskContent
 
         $attachment->update(['original_name' => $validated['original_name']]);
 
-        return response()->json($attachment->fresh('user:id,name'));
+        return response()->json($attachment->fresh('user:id,name,avatar'));
     }
 
     protected function performReplaceAttachment(Request $request, Task $task, TaskAttachment $attachment)
@@ -142,7 +142,7 @@ trait ManagesTaskContent
             'user_id'       => $request->user()->id,
         ]);
 
-        return response()->json($attachment->fresh('user:id,name'));
+        return response()->json($attachment->fresh('user:id,name,avatar'));
     }
 
     protected function performDeleteAttachment(Request $request, Task $task, TaskAttachment $attachment)

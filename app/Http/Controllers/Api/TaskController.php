@@ -101,10 +101,10 @@ class TaskController extends Controller
             'workProject.members',
             'assignees:id,name,email,role',
             'creator:id,name',
-            'comments.user:id,name,role',
+            'comments.user:id,name,role,avatar',
             'comments.replyTo',
-            'comments.replyTo.user:id,name,role',
-            'attachments.user:id,name',
+            'comments.replyTo.user:id,name,role,avatar',
+            'attachments.user:id,name,avatar',
         ]);
 
         $perms = app(\App\Services\WorkProjectPermissionService::class);
@@ -253,7 +253,7 @@ class TaskController extends Controller
             );
         }
 
-        return response()->json($comment->load(['user:id,name,role', 'replyTo.user:id,name,role']), 201);
+        return response()->json($comment->load(['user:id,name,role,avatar', 'replyTo.user:id,name,role,avatar']), 201);
     }
 
     public function uploadAttachment(Request $request, Task $task)
@@ -286,7 +286,7 @@ class TaskController extends Controller
             }
         }
 
-        return response()->json($attachment->load('user:id,name'), 201);
+        return response()->json($attachment->load('user:id,name,avatar'), 201);
     }
 
     public function updateComment(Request $request, Task $task, TaskComment $comment)

@@ -173,10 +173,10 @@ class StaffDashboardController extends Controller
         $task->load([
             'workProject.members',
             'assignees:id,name,email',
-            'comments.user:id,name,role',
+            'comments.user:id,name,role,avatar',
             'comments.replyTo',
-            'comments.replyTo.user:id,name,role',
-            'attachments.user:id,name',
+            'comments.replyTo.user:id,name,role,avatar',
+            'attachments.user:id,name,avatar',
         ]);
 
         if ($task->workProject && $task->workProject->relationLoaded('members')) {
@@ -307,7 +307,7 @@ class StaffDashboardController extends Controller
             );
         }
 
-        return response()->json($comment->load(['user:id,name,role', 'replyTo.user:id,name,role']), 201);
+        return response()->json($comment->load(['user:id,name,role,avatar', 'replyTo.user:id,name,role,avatar']), 201);
     }
 
     public function updateComment(Request $request, Task $task, TaskComment $comment)
@@ -353,7 +353,7 @@ class StaffDashboardController extends Controller
             }
         }
 
-        return response()->json($attachment->load('user:id,name'), 201);
+        return response()->json($attachment->load('user:id,name,avatar'), 201);
     }
 
     public function renameAttachment(Request $request, Task $task, TaskAttachment $attachment)

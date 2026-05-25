@@ -68,7 +68,7 @@ class WorkProjectController extends Controller
         $workProject->setAttribute(
             'recent_activity',
             TaskComment::whereIn('task_id', $taskIds)
-                ->with(['user:id,name', 'task:id,title'])
+                ->with(['user:id,name,avatar', 'task:id,title'])
                 ->latest()
                 ->limit(30)
                 ->get()
@@ -77,7 +77,7 @@ class WorkProjectController extends Controller
         $workProject->setAttribute(
             'recent_files',
             TaskAttachment::whereIn('task_id', $taskIds)
-                ->with(['user:id,name', 'task:id,title'])
+                ->with(['user:id,name,avatar', 'task:id,title'])
                 ->latest()
                 ->limit(30)
                 ->get()
