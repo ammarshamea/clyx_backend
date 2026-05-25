@@ -54,7 +54,10 @@ Route::prefix('v1')->group(function () {
         });
     });
 
-    Route::middleware('auth:sanctum')->group(function () {
+        Route::middleware('auth:sanctum')->group(function () {
+
+        // Profile
+        Route::post('/profile/avatar', [AuthController::class, 'uploadAvatar']);
 
         // Notifications (all authenticated roles)
         Route::get('/notifications', [NotificationController::class, 'index']);
